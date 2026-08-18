@@ -1,0 +1,13 @@
+{
+  "name": "document-management-system",
+  "private": true,
+  "version": "0.1.0",
+  "scripts": {
+    "dev:web": "pnpm --filter apps/web dev",
+    "dev:api": "pnpm --filter apps/api start:dev",
+    "build:web": "pnpm --filter apps/web build",
+    "build:api": "pnpm --filter apps/api build",
+    "dev": "pnpm -r dev",
+    "build": "pnpm -r build"
+  }
+}
