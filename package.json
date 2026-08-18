@@ -3,10 +3,10 @@
   "private": true,
   "version": "0.1.0",
   "scripts": {
-    "dev:web": "pnpm --filter apps/web dev",
-    "dev:api": "pnpm --filter apps/api start:dev",
-    "build:web": "pnpm --filter apps/web build",
-    "build:api": "pnpm --filter apps/api build",
+    "dev:frontend": "pnpm --filter apps/frontend dev",
+    "dev:backend": "pnpm --filter apps/backend start:dev",
+    "build:frontend": "pnpm --filter apps/frontend build",
+    "build:backend": "pnpm --filter apps/backend build",
     "dev": "pnpm -r dev",
     "build": "pnpm -r build"
   }
