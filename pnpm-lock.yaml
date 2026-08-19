@@ -44,6 +44,9 @@ importers:
       '@nestjs/testing':
         specifier: ^11.0.1
         version: 11.2.1(@nestjs/common@11.2.1(reflect-metadata@0.2.2)(rxjs@7.8.2)(supports-color@8.1.1))(@nestjs/core@11.2.1)(@nestjs/platform-express@11.2.1)
+      '@prisma/config':
+        specifier: ^7.9.1
+        version: 7.9.1
       '@types/express':
         specifier: ^5.0.0
         version: 5.0.6
@@ -56,6 +59,9 @@ importers:
       '@types/supertest':
         specifier: ^7.0.0
         version: 7.2.1
+      dotenv:
+        specifier: ^17.4.2
+        version: 17.4.2
       eslint:
         specifier: ^9.18.0
         version: 9.39.5(jiti@2.7.0)(supports-color@8.1.1)

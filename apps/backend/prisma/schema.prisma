@@ -1,13 +1,155 @@
-// This is your Prisma schema file,
-// learn more about it in the docs: https://pris.ly/d/prisma-schema
-
-// Get a free hosted Postgres database in seconds: `npx create-db`
-
 generator client {
-  provider = "prisma-client"
-  output   = "../generated/prisma"
+  provider = "prisma-client-js"
 }
 
 datasource db {
   provider = "postgresql"
+  // url / directUrl intentionally omitted here — resolved centrally via
+  // prisma.config.ts's `datasource` block (DATABASE_URL / DIRECT_URL).
+  // Keeping resolution in one place avoids the two files silently
+  // disagreeing, which is what caused the earlier migrate-dev failures.
+}
+
+enum Role {
+  HEAD_OF_BIDDING
+  BIDDING_OFFICER
+}
+
+enum DocType {
+  BANK_REF_LETTER
+  BID_TECHNICAL_DOCS
+  CAC
+  CLIENTS_COMPANIES
+  COMPANY_PROFILE
+  DIRECTORS_FOLDER
+  EXPERIENCE
+  FINANCIAL_AUDITED_DOCUMENT
+  HSE
+  IN_HOUSE_PERSONNEL_DETAILS
+  INSURANCE
+  IRR
+  ITF
+  MOU
+  NCEC
+  NIMASA
+  NIPEX_RENEWAL
+  NMDPRA
+  NOGIC
+  NPA
+  NSITF
+  NUPRC
+  ORGANOGRAM
+  PENCOM
+  TAX
+  OTHER // fallback for anything not categorized
+}
+
+enum Confidentiality {
+  PUBLIC
+  RESTRICTED
+  CONFIDENTIAL
+}
+
+model User {
+  id           String   @id @default(uuid())
+  name         String
+  email        String   @unique
+  passwordHash String   @map("password_hash")
+  role         Role
+  active       Boolean  @default(true)
+  createdAt    DateTime @default(now()) @map("created_at")
+
+  documentsOwned    Document[]        @relation("DocumentOwner")
+  versionsUploaded  DocumentVersion[] @relation("VersionUploader")
+  auditLogEntries   AuditLog[]
+
+  @@map("users")
+}
+
+model Document {
+  id              String          @id @default(uuid())
+  title           String
+  category        String          // plain string per decision — evolves with business needs
+  docType         DocType         @map("doc_type")
+  status          String          @default("draft") // plain string per decision, e.g. draft/active/superseded/archived
+  ownerId         String          @map("owner_id")
+  owner           User            @relation("DocumentOwner", fields: [ownerId], references: [id])
+  confidentiality Confidentiality @default(PUBLIC)
+
+  issueDate   DateTime? @map("issue_date")
+  expiryDate  DateTime? @map("expiry_date") // null = "no expiry" — must be distinguished from "expired" in UI
+  reviewDate  DateTime? @map("review_date")
+  createdAt   DateTime  @default(now()) @map("created_at")
+
+  versions            DocumentVersion[]
+  tags                DocumentTag[]
+  auditLogEntries     AuditLog[]
+  notificationsSent   NotificationSent[]
+
+  @@index([status])
+  @@index([expiryDate])
+  @@map("documents")
+}
+
+model DocumentVersion {
+  id               String   @id @default(uuid())
+  documentId       String   @map("document_id")
+  document         Document @relation(fields: [documentId], references: [id], onDelete: Cascade)
+
+  driveFileId      String   @map("drive_file_id")
+  driveRevisionId  String?  @map("drive_revision_id") // nullable: revision may age out per Drive's ~30-day retention (Section 5)
+  versionNumber    Int      @map("version_number")
+
+  uploadedById     String   @map("uploaded_by")
+  uploadedBy       User     @relation("VersionUploader", fields: [uploadedById], references: [id])
+  uploadedAt       DateTime @default(now()) @map("uploaded_at")
+
+  changeNote       String?  @map("change_note")
+
+  @@unique([documentId, versionNumber])
+  @@map("document_versions")
+}
+
+model Tag {
+  id    String        @id @default(uuid())
+  name  String        @unique
+  docs  DocumentTag[]
+
+  @@map("tags")
+}
+
+model DocumentTag {
+  documentId String   @map("document_id")
+  document   Document @relation(fields: [documentId], references: [id], onDelete: Cascade)
+  tagId      String   @map("tag_id")
+  tag        Tag      @relation(fields: [tagId], references: [id], onDelete: Cascade)
+
+  @@id([documentId, tagId])
+  @@map("document_tags")
+}
+
+model AuditLog {
+  id         String    @id @default(uuid())
+  userId     String    @map("user_id")
+  user       User      @relation(fields: [userId], references: [id])
+  action     String
+  documentId String?   @map("document_id") // nullable: some actions may not be document-scoped (e.g. user management)
+  document   Document? @relation(fields: [documentId], references: [id])
+  timestamp  DateTime  @default(now())
+  details    String?
+
+  @@index([userId])
+  @@index([documentId])
+  @@map("audit_log")
+}
+
+model NotificationSent {
+  id         String   @id @default(uuid())
+  documentId String   @map("document_id")
+  document   Document @relation(fields: [documentId], references: [id], onDelete: Cascade)
+  threshold  Int      // days-before-expiry: 90 / 60 / 30 / 7, or 120 for long-lead regulatory (Section 6) — Int, not enum, since cadence may vary by doc type
+  sentAt     DateTime @default(now()) @map("sent_at")
+
+  @@unique([documentId, threshold])
+  @@map("notifications_sent")
 }
