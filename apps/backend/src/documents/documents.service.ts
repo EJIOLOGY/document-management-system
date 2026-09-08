@@ -33,7 +33,6 @@ export class DocumentsService {
           title: dto.title,
           category: dto.category,
           docType: dto.docType,
-          confidentiality: dto.confidentiality,
           issueDate: this.toDate(dto.issueDate),
           expiryDate: this.toDate(dto.expiryDate),
           reviewDate: this.toDate(dto.reviewDate),
@@ -42,6 +41,8 @@ export class DocumentsService {
             create: {
               driveFileId: uploaded.driveFileId,
               driveRevisionId: uploaded.driveRevisionId,
+              originalFileName: file.originalname,
+              mimeType: file.mimetype,
               versionNumber: 1,
               uploadedById: userId,
             },
@@ -91,6 +92,8 @@ export class DocumentsService {
           documentId,
           driveFileId: currentVersion.driveFileId,
           driveRevisionId: uploaded.driveRevisionId,
+          originalFileName: file.originalname,
+          mimeType: file.mimetype,
           versionNumber: nextVersionNumber,
           uploadedById: userId,
           changeNote: dto.changeNote,
@@ -107,7 +110,6 @@ export class DocumentsService {
         ? { category: { equals: query.category, mode: 'insensitive' } }
         : {}),
       ...(query.docType ? { docType: query.docType } : {}),
-      ...(query.confidentiality ? { confidentiality: query.confidentiality } : {}),
       ...(query.status ? { status: query.status } : {}),
       ...(query.q
         ? {
@@ -138,6 +140,8 @@ export class DocumentsService {
         select: {
           id: true,
           versionNumber: true,
+          originalFileName: true,
+          mimeType: true,
           uploadedAt: true,
           changeNote: true,
           uploadedBy: { select: { id: true, name: true, email: true } },
@@ -173,6 +177,8 @@ export class DocumentsService {
         id: true,
         versionNumber: true,
         driveRevisionId: true,
+        originalFileName: true,
+        mimeType: true,
         uploadedAt: true,
         changeNote: true,
         uploadedBy: { select: { id: true, name: true, email: true } },
@@ -196,7 +202,10 @@ export class DocumentsService {
         version.driveFileId,
         versionNumber ? (version.driveRevisionId ?? undefined) : undefined,
       ),
-      fileName: `${this.safeFileName(document.title)}-v${version.versionNumber}`,
+      fileName: version.originalFileName
+        ? this.versionedFileName(version.originalFileName, version.versionNumber)
+        : `${this.safeFileName(document.title)}-v${version.versionNumber}`,
+      mimeType: version.mimeType ?? 'application/octet-stream',
     };
   }
 
@@ -215,5 +224,16 @@ export class DocumentsService {
 
   private safeFileName(title: string) {
     return title.replace(/[^a-zA-Z0-9._-]/g, '_').slice(0, 120) || 'document';
+  }
+
+  private versionedFileName(originalFileName: string, versionNumber: number) {
+    const lastDot = originalFileName.lastIndexOf('.');
+    const hasExtension = lastDot > 0 && lastDot < originalFileName.length - 1;
+    const baseName = hasExtension
+      ? originalFileName.slice(0, lastDot)
+      : originalFileName;
+    const extension = hasExtension ? originalFileName.slice(lastDot) : '';
+
+    return `${this.safeFileName(baseName)}-v${versionNumber}${extension}`;
   }
 }

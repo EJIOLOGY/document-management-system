@@ -32,7 +32,6 @@ model Document {
   docType           DocType            @map("doc_type")
   status            String             @default("draft")
   ownerId           String             @map("owner_id")
-  confidentiality   Confidentiality    @default(PUBLIC)
   issueDate         DateTime?          @map("issue_date")
   expiryDate        DateTime?          @map("expiry_date")
   reviewDate        DateTime?          @map("review_date")
@@ -53,6 +52,8 @@ model DocumentVersion {
   documentId      String   @map("document_id")
   driveFileId     String   @map("drive_file_id")
   driveRevisionId String?  @map("drive_revision_id")
+  originalFileName String? @map("original_file_name")
+  mimeType         String? @map("mime_type")
   versionNumber   Int      @map("version_number")
   uploadedById    String   @map("uploaded_by")
   uploadedAt      DateTime @default(now()) @map("uploaded_at")
@@ -140,10 +141,4 @@ enum DocType {
   PENCOM
   TAX
   OTHER
-}
-
-enum Confidentiality {
-  PUBLIC
-  RESTRICTED
-  CONFIDENTIAL
 }

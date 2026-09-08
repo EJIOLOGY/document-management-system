@@ -95,7 +95,7 @@ export class DocumentsController {
       ? await new ParseIntPipe().transform(version, { type: 'query' })
       : undefined;
     const download = await this.documentsService.getDownload(id, versionNumber);
-    response.setHeader('Content-Type', 'application/octet-stream');
+    response.setHeader('Content-Type', download.mimeType);
     response.setHeader('Content-Disposition', `attachment; filename="${download.fileName}"`);
     download.stream.pipe(response);
   }

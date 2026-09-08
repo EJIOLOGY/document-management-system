@@ -1,4 +1,4 @@
-import { Confidentiality, DocType } from '@prisma/client';
+import { DocType } from '@prisma/client';
 import {
   IsEnum,
   IsISO8601,
@@ -24,10 +24,6 @@ export class UpdateDocumentDto {
   @IsOptional()
   @IsEnum(DocType)
   docType?: DocType;
-
-  @IsOptional()
-  @IsEnum(Confidentiality)
-  confidentiality?: Confidentiality;
 
   @IsOptional()
   @IsISO8601()
