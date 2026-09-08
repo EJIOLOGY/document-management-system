@@ -5,6 +5,7 @@ import {
 } from '@nestjs/common';
 import { JwtService } from '@nestjs/jwt';
 import * as bcrypt from 'bcrypt';
+import { createHash } from 'crypto';
 import { Role, User } from '@prisma/client';
 import { UsersService } from '../users/users.service';
 import { RegisterDto } from './dto/register.dto';
@@ -98,7 +99,10 @@ export class AuthService {
       throw new UnauthorizedException('Refresh token expired');
     }
 
-    const matches = await bcrypt.compare(refreshToken, user.refreshTokenHash);
+    const matches = await bcrypt.compare(
+      this.hashRefreshTokenInput(refreshToken),
+      user.refreshTokenHash,
+    );
     if (!matches) {
       await this.usersService.clearRefreshToken(user.id);
       throw new UnauthorizedException(
@@ -120,7 +124,10 @@ export class AuthService {
     const accessToken = this.jwtService.sign(payload);
     const refreshToken = this.refreshJwtService.sign({ sub: user.id });
 
-    const refreshTokenHash = await bcrypt.hash(refreshToken, SALT_ROUNDS);
+    const refreshTokenHash = await bcrypt.hash(
+      this.hashRefreshTokenInput(refreshToken),
+      SALT_ROUNDS,
+    );
     const refreshTokenExpiresAt = new Date(Date.now() + REFRESH_TOKEN_TTL_MS);
 
     await this.usersService.setRefreshToken(
@@ -139,5 +146,9 @@ export class AuthService {
         role: user.role,
       },
     };
+  }
+
+  private hashRefreshTokenInput(refreshToken: string) {
+    return createHash('sha256').update(refreshToken).digest('hex');
   }
 }
