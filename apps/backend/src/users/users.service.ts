@@ -22,8 +22,32 @@ export class UsersService {
   findPending() {
     return this.prisma.user.findMany({
       where: { active: false },
-      select: { id: true, name: true, email: true, role: true, createdAt: true },
+      select: {
+        id: true,
+        name: true,
+        email: true,
+        role: true,
+        createdAt: true,
+      },
       orderBy: { createdAt: 'asc' },
+    });
+  }
+
+  setRefreshToken(
+    id: string,
+    refreshTokenHash: string,
+    refreshTokenExpiresAt: Date,
+  ) {
+    return this.prisma.user.update({
+      where: { id },
+      data: { refreshTokenHash, refreshTokenExpiresAt },
+    });
+  }
+
+  clearRefreshToken(id: string) {
+    return this.prisma.user.update({
+      where: { id },
+      data: { refreshTokenHash: null, refreshTokenExpiresAt: null },
     });
   }
 
