@@ -13,21 +13,20 @@ import { UsersModule } from '../users/users.module';
     JwtModule.registerAsync({
       useFactory: () => {
         const secret = process.env.JWT_SECRET;
+
         if (!secret) {
           throw new Error('JWT_SECRET is not set — check .env');
         }
+
         return {
           secret,
-          // Short-lived access token only — no refresh token pair.
-          // Expired token = re-login. Adjust duration here if 1h proves
-          // too short/long in practice; this is the single place it's set.
           signOptions: { expiresIn: '1h' },
         };
       },
     }),
   ],
   controllers: [AuthController],
-  providers: [JwtStrategy],
+  providers: [AuthService, JwtStrategy],
   exports: [AuthService],
 })
 export class AuthModule {}
