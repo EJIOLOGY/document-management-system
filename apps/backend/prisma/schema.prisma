@@ -21,6 +21,7 @@ model User {
   auditLogEntries       AuditLog[]
   versionsUploaded      DocumentVersion[] @relation("VersionUploader")
   documentsOwned        Document[]        @relation("DocumentOwner")
+  notifications         InAppNotification[]
 
   @@map("users")
 }
@@ -41,6 +42,7 @@ model Document {
   versions          DocumentVersion[]
   owner             User               @relation("DocumentOwner", fields: [ownerId], references: [id])
   notificationsSent NotificationSent[]
+  notifications     InAppNotification[]
 
   @@index([status])
   @@index([expiryDate])
@@ -101,12 +103,30 @@ model AuditLog {
 model NotificationSent {
   id         String   @id @default(uuid())
   documentId String   @map("document_id")
-  threshold  Int
+  type       ExpiryNotificationType
   sentAt     DateTime @default(now()) @map("sent_at")
   document   Document @relation(fields: [documentId], references: [id], onDelete: Cascade)
 
-  @@unique([documentId, threshold])
+  @@unique([documentId, type])
   @@map("notifications_sent")
+}
+
+model InAppNotification {
+  id         String                 @id @default(uuid())
+  userId     String                 @map("user_id")
+  documentId String                 @map("document_id")
+  type       ExpiryNotificationType
+  title      String
+  message    String
+  read       Boolean                @default(false)
+  createdAt  DateTime               @default(now()) @map("created_at")
+  readAt     DateTime?              @map("read_at")
+  user       User                   @relation(fields: [userId], references: [id], onDelete: Cascade)
+  document   Document               @relation(fields: [documentId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, documentId, type])
+  @@index([userId, read, createdAt])
+  @@map("in_app_notifications")
 }
 
 enum Role {
@@ -141,4 +161,10 @@ enum DocType {
   PENCOM
   TAX
   OTHER
+}
+
+enum ExpiryNotificationType {
+  EXPIRING_30_DAYS
+  EXPIRING_7_DAYS
+  EXPIRED
 }
