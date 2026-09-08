@@ -161,14 +161,14 @@ export class DriveService {
           },
           { responseType: 'stream' },
         );
-        return res.data as unknown as Readable;
+        return res.data;
       }
 
       const res = await this.drive.files.get(
         { fileId: driveFileId, alt: 'media' },
         { responseType: 'stream' },
       );
-      return res.data as unknown as Readable;
+      return res.data;
     } catch (err) {
       const status =
         (err as { code?: number; status?: number }).code ??
