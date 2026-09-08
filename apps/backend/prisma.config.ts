@@ -8,7 +8,6 @@ export default defineConfig({
     seed: 'pnpm exec tsx prisma/seed.ts',
   },
   datasource: {
-    url: process.env.DATABASE_URL, // pooled connection
-    // shadowDatabaseUrl: process.env.SHADOW_DATABASE_URL, // optional for migrations
+    url: process.env.DATABASE_URL,
   },
 });
