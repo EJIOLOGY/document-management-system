@@ -6,6 +6,129 @@ datasource db {
   provider = "postgresql"
 }
 
+model User {
+  id                    String            @id @default(uuid())
+  name                  String
+  email                 String            @unique
+  passwordHash          String            @map("password_hash")
+  role                  Role
+  active                Boolean           @default(false)
+  createdAt             DateTime          @default(now()) @map("created_at")
+
+  refreshTokenHash      String?           @map("refresh_token_hash")
+  refreshTokenExpiresAt DateTime?         @map("refresh_token_expires_at")
+
+  auditLogEntries       AuditLog[]
+  versionsUploaded      DocumentVersion[] @relation("VersionUploader")
+  documentsOwned        Document[]        @relation("DocumentOwner")
+  notifications         InAppNotification[]
+
+  @@map("users")
+}
+
+model Document {
+  id                String             @id @default(uuid())
+  title             String
+  category          String
+  docType           DocType            @map("doc_type")
+  status            String             @default("draft")
+  ownerId           String             @map("owner_id")
+  issueDate         DateTime?          @map("issue_date")
+  expiryDate        DateTime?          @map("expiry_date")
+  reviewDate        DateTime?          @map("review_date")
+  createdAt         DateTime           @default(now()) @map("created_at")
+  auditLogEntries   AuditLog[]
+  tags              DocumentTag[]
+  versions          DocumentVersion[]
+  owner             User               @relation("DocumentOwner", fields: [ownerId], references: [id])
+  notificationsSent NotificationSent[]
+  notifications     InAppNotification[]
+
+  @@index([status])
+  @@index([expiryDate])
+  @@map("documents")
+}
+
+model DocumentVersion {
+  id              String   @id @default(uuid())
+  documentId      String   @map("document_id")
+  driveFileId     String   @map("drive_file_id")
+  driveRevisionId String?  @map("drive_revision_id")
+  originalFileName String? @map("original_file_name")
+  mimeType         String? @map("mime_type")
+  versionNumber   Int      @map("version_number")
+  uploadedById    String   @map("uploaded_by")
+  uploadedAt      DateTime @default(now()) @map("uploaded_at")
+  changeNote      String?  @map("change_note")
+  document        Document @relation(fields: [documentId], references: [id], onDelete: Cascade)
+  uploadedBy      User     @relation("VersionUploader", fields: [uploadedById], references: [id])
+
+  @@unique([documentId, versionNumber])
+  @@map("document_versions")
+}
+
+model Tag {
+  id   String        @id @default(uuid())
+  name String        @unique
+  docs DocumentTag[]
+
+  @@map("tags")
+}
+
+model DocumentTag {
+  documentId String   @map("document_id")
+  tagId      String   @map("tag_id")
+  document   Document @relation(fields: [documentId], references: [id], onDelete: Cascade)
+  tag        Tag      @relation(fields: [tagId], references: [id], onDelete: Cascade)
+
+  @@id([documentId, tagId])
+  @@map("document_tags")
+}
+
+model AuditLog {
+  id         String    @id @default(uuid())
+  userId     String    @map("user_id")
+  action     String
+  documentId String?   @map("document_id")
+  timestamp  DateTime  @default(now())
+  details    String?
+  document   Document? @relation(fields: [documentId], references: [id])
+  user       User      @relation(fields: [userId], references: [id])
+
+  @@index([userId])
+  @@index([documentId])
+  @@map("audit_log")
+}
+
+model NotificationSent {
+  id         String   @id @default(uuid())
+  documentId String   @map("document_id")
+  type       ExpiryNotificationType
+  sentAt     DateTime @default(now()) @map("sent_at")
+  document   Document @relation(fields: [documentId], references: [id], onDelete: Cascade)
+
+  @@unique([documentId, type])
+  @@map("notifications_sent")
+}
+
+model InAppNotification {
+  id         String                 @id @default(uuid())
+  userId     String                 @map("user_id")
+  documentId String                 @map("document_id")
+  type       ExpiryNotificationType
+  title      String
+  message    String
+  read       Boolean                @default(false)
+  createdAt  DateTime               @default(now()) @map("created_at")
+  readAt     DateTime?              @map("read_at")
+  user       User                   @relation(fields: [userId], references: [id], onDelete: Cascade)
+  document   Document               @relation(fields: [documentId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, documentId, type])
+  @@index([userId, read, createdAt])
+  @@map("in_app_notifications")
+}
+
 enum Role {
   HEAD_OF_BIDDING
   BIDDING_OFFICER
@@ -37,115 +160,11 @@ enum DocType {
   ORGANOGRAM
   PENCOM
   TAX
-  OTHER // fallback for anything not categorized
+  OTHER
 }
 
-enum Confidentiality {
-  PUBLIC
-  RESTRICTED
-  CONFIDENTIAL
-}
-
-model User {
-  id           String   @id @default(uuid())
-  name         String
-  email        String   @unique
-  passwordHash String   @map("password_hash")
-  role         Role
-  active       Boolean  @default(false) // false = pending Head of Bidding approval
-  createdAt    DateTime @default(now()) @map("created_at")
-
-  documentsOwned    Document[]        @relation("DocumentOwner")
-  versionsUploaded  DocumentVersion[] @relation("VersionUploader")
-  auditLogEntries   AuditLog[]
-
-  @@map("users")
-}
-
-model Document {
-  id              String          @id @default(uuid())
-  title           String
-  category        String          // plain string per decision — evolves with business needs
-  docType         DocType         @map("doc_type")
-  status          String          @default("draft") // plain string per decision, e.g. draft/active/superseded/archived
-  ownerId         String          @map("owner_id")
-  owner           User            @relation("DocumentOwner", fields: [ownerId], references: [id])
-  confidentiality Confidentiality @default(PUBLIC)
-
-  issueDate   DateTime? @map("issue_date")
-  expiryDate  DateTime? @map("expiry_date") // null = "no expiry" — must be distinguished from "expired" in UI
-  reviewDate  DateTime? @map("review_date")
-  createdAt   DateTime  @default(now()) @map("created_at")
-
-  versions            DocumentVersion[]
-  tags                DocumentTag[]
-  auditLogEntries     AuditLog[]
-  notificationsSent   NotificationSent[]
-
-  @@index([status])
-  @@index([expiryDate])
-  @@map("documents")
-}
-
-model DocumentVersion {
-  id               String   @id @default(uuid())
-  documentId       String   @map("document_id")
-  document         Document @relation(fields: [documentId], references: [id], onDelete: Cascade)
-
-  driveFileId      String   @map("drive_file_id")
-  driveRevisionId  String?  @map("drive_revision_id") // nullable: revision may age out per Drive's ~30-day retention (Section 5)
-  versionNumber    Int      @map("version_number")
-
-  uploadedById     String   @map("uploaded_by")
-  uploadedBy       User     @relation("VersionUploader", fields: [uploadedById], references: [id])
-  uploadedAt       DateTime @default(now()) @map("uploaded_at")
-
-  changeNote       String?  @map("change_note")
-
-  @@unique([documentId, versionNumber])
-  @@map("document_versions")
-}
-
-model Tag {
-  id    String        @id @default(uuid())
-  name  String        @unique
-  docs  DocumentTag[]
-
-  @@map("tags")
-}
-
-model DocumentTag {
-  documentId String   @map("document_id")
-  document   Document @relation(fields: [documentId], references: [id], onDelete: Cascade)
-  tagId      String   @map("tag_id")
-  tag        Tag      @relation(fields: [tagId], references: [id], onDelete: Cascade)
-
-  @@id([documentId, tagId])
-  @@map("document_tags")
-}
-
-model AuditLog {
-  id         String    @id @default(uuid())
-  userId     String    @map("user_id")
-  user       User      @relation(fields: [userId], references: [id])
-  action     String
-  documentId String?   @map("document_id") // nullable: some actions may not be document-scoped (e.g. user management)
-  document   Document? @relation(fields: [documentId], references: [id])
-  timestamp  DateTime  @default(now())
-  details    String?
-
-  @@index([userId])
-  @@index([documentId])
-  @@map("audit_log")
-}
-
-model NotificationSent {
-  id         String   @id @default(uuid())
-  documentId String   @map("document_id")
-  document   Document @relation(fields: [documentId], references: [id], onDelete: Cascade)
-  threshold  Int      // days-before-expiry: 90 / 60 / 30 / 7, or 120 for long-lead regulatory (Section 6) — Int, not enum, since cadence may vary by doc type
-  sentAt     DateTime @default(now()) @map("sent_at")
-
-  @@unique([documentId, threshold])
-  @@map("notifications_sent")
+enum ExpiryNotificationType {
+  EXPIRING_30_DAYS
+  EXPIRING_7_DAYS
+  EXPIRED
 }
